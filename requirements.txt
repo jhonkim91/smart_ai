@@ -1,7 +1,10 @@
 discord.py>=2.4
+feedparser>=6.0
 chromadb>=0.5
 ollama>=0.4
 python-dotenv>=1.0
 requests>=2.32
 edge-tts>=7.0
 pillow>=11.0
+google-api-python-client>=2.170
+google-auth-oauthlib>=1.2

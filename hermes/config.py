@@ -29,4 +29,10 @@ DISCORD_APPROVAL_CHANNEL_ID = int(os.getenv("DISCORD_APPROVAL_CHANNEL_ID") or 0)
 DISCORD_LOG_CHANNEL_ID = int(os.getenv("DISCORD_LOG_CHANNEL_ID") or 0)
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
 
+# --- 트렌드 수집 ---
+TREND_RSS_FEEDS: list[str] = [
+    u.strip() for u in os.getenv("TREND_RSS_FEEDS", "").split(",") if u.strip()
+]
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")
+
 DATA_DIR.mkdir(parents=True, exist_ok=True)
