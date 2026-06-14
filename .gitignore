@@ -5,3 +5,8 @@ __pycache__/
 *.pyc
 .DS_Store
 *.log
+# 저작권 자산/대용량 미디어는 커밋하지 않음(원본 화면녹화·영상 클립 등은 data/에 보관)
+*.mov
+assets/bgm/*
+!assets/bgm/README.md
+!assets/bgm/credits.json

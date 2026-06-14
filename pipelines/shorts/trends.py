@@ -12,6 +12,9 @@ bus에 kind=draft로 적재한 뒤 Discord로 후보 목록을 보고한다.
 from __future__ import annotations
 
 import argparse
+import os
+import re
+import signal
 import sys
 from typing import NamedTuple
 
@@ -19,6 +22,8 @@ from channel.notify import send as notify
 from hermes import bus
 from hermes.config import TREND_RSS_FEEDS, YOUTUBE_API_KEY
 from hermes.ollama_worker import run as ollama
+
+OLLAMA_TIMEOUT = int(os.getenv("TREND_OLLAMA_TIMEOUT", "45"))
 
 
 class Headline(NamedTuple):
@@ -87,8 +92,45 @@ def _fetch_youtube_popular(
         return []
 
 
+def _fallback_candidates(headlines: list[Headline]) -> list[str]:
+    """Ollama 실패/타임아웃 시 헤드라인 기반 결정론적 후보 5개 생성."""
+    candidates: list[str] = []
+    seen: set[str] = set()
+    for headline in headlines:
+        title = re.sub(r"\s+", " ", headline.title).strip()
+        title = re.sub(r"[-|].*$", "", title).strip()
+        title = title.strip('"“”‘’')
+        if not title:
+            continue
+        if len(title) > 44:
+            title = title[:44].rstrip() + "…"
+        candidate = f"{title}, 지금 무슨 일이?"
+        key = candidate.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        candidates.append(candidate)
+        if len(candidates) >= 5:
+            break
+    return candidates
+
+
+def _ollama_with_timeout(kind: str, text: str, labels: str = "") -> str:
+    """Ollama 호출이 오래 걸리면 TimeoutError를 발생시켜 fallback 가능하게 한다."""
+    def _raise_timeout(_signum, _frame):
+        raise TimeoutError(f"Ollama {kind} timed out after {OLLAMA_TIMEOUT}s")
+
+    previous = signal.signal(signal.SIGALRM, _raise_timeout)
+    signal.setitimer(signal.ITIMER_REAL, OLLAMA_TIMEOUT)
+    try:
+        return ollama(kind, text, labels=labels)
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous)
+
+
 def _generate_candidates(headlines: list[Headline]) -> list[str]:
-    """Ollama(classify → title)로 쇼츠 주제 후보 5개를 생성한다."""
+    """Ollama(classify → title)로 쇼츠 주제 후보 5개를 생성하고, 실패 시 fallback한다."""
     if not headlines:
         return []
 
@@ -97,13 +139,17 @@ def _generate_candidates(headlines: list[Headline]) -> list[str]:
         "건강/습관,기술/AI,재테크/경제,라이프스타일,시사/사회,교육/자기계발,엔터테인먼트"
     )
 
-    # 1) classify: 전체 헤드라인에서 지배적 트렌드 카테고리 추출
-    category = ollama("classify", combined, labels=category_labels).strip()
-    print(f"[trends] 분류 결과: {category}", file=sys.stderr)
+    try:
+        # 1) classify: 전체 헤드라인에서 지배적 트렌드 카테고리 추출
+        category = _ollama_with_timeout("classify", combined, labels=category_labels).strip()
+        print(f"[trends] 분류 결과: {category}", file=sys.stderr)
 
-    # 2) title: 카테고리 + 상위 헤드라인으로 제목 후보 5개 생성
-    context = f"트렌드 카테고리: {category}\n\n주요 헤드라인:\n{combined}"
-    raw = ollama("title", context)
+        # 2) title: 카테고리 + 상위 헤드라인으로 제목 후보 5개 생성
+        context = f"트렌드 카테고리: {category}\n\n주요 헤드라인:\n{combined}"
+        raw = _ollama_with_timeout("title", context)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[trends] Ollama 후보 생성 실패 — deterministic fallback 사용: {exc}", file=sys.stderr)
+        return _fallback_candidates(headlines)
 
     candidates: list[str] = []
     for line in raw.splitlines():

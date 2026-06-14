@@ -17,6 +17,7 @@ import sys
 from pathlib import Path
 
 from hermes.config import SHORTS_DIR
+from pipelines.shorts import bgm as bgm_mod
 from pipelines.shorts import render as render_mod
 from pipelines.shorts import script_gen, tts
 
@@ -26,7 +27,8 @@ def _slug(topic: str) -> str:
     return s[:40] or "episode"
 
 
-def produce(topic: str, script_file: str | None = None, notify: bool = False) -> dict:
+def produce(topic: str, script_file: str | None = None, notify: bool = False,
+            bgm: str | None = None) -> dict:
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     ep_dir = SHORTS_DIR / f"{stamp}-{_slug(topic)}"
     ep_dir.mkdir(parents=True, exist_ok=True)
@@ -55,10 +57,21 @@ def produce(topic: str, script_file: str | None = None, notify: bool = False) ->
 
     result = {"episode_dir": str(ep_dir), "video": str(out),
               "title": script["title"], "duration": round(manifest["duration"], 1)}
+
+    # 4) BGM 합성 (선택)
+    if bgm:
+        bgm_path, credits = bgm_mod.resolve_track(bgm)
+        mixed = ep_dir / "final_bgm.mp4"
+        print(f"▸ BGM 합성 ({bgm_path.name})…")
+        out = bgm_mod.mix(out, bgm_path, mixed)
+        result["video"] = str(out)
+        result["bgm"] = {"file": bgm_path.name, "credits": credits}
+        print(f"  완료: {out}")
+
     (ep_dir / "result.json").write_text(
         json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    # 4) 보고 (단방향 webhook — 승인 아님. 업로드는 별도 HITL)
+    # 5) 보고 (단방향 webhook — 승인 아님. 업로드는 별도 HITL)
     if notify:
         from channel.notify import send
         send(f"🎬 쇼츠 렌더링 완료\n제목: {script['title']}\n"
@@ -72,9 +85,11 @@ def main() -> int:
     p.add_argument("topic")
     p.add_argument("--script", default=None, help="다듬은 스크립트 JSON 경로")
     p.add_argument("--notify", action="store_true", help="완료 시 Discord 알림")
+    p.add_argument("--bgm", default=None,
+                   help="assets/bgm 파일명 또는 random. 생략 시 기존 무BGM 경로")
     args = p.parse_args()
     try:
-        result = produce(args.topic, args.script, args.notify)
+        result = produce(args.topic, args.script, args.notify, args.bgm)
         print(json.dumps(result, ensure_ascii=False))
         return 0
     except Exception as e:  # noqa: BLE001

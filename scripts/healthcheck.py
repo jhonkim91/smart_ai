@@ -94,12 +94,12 @@ def main() -> int:
         check("Discord 봇 토큰", discord_token),
         check("Discord 웹후크", discord_webhook),
     ]
-    # n8n은 선택 구성요소라 실패해도 경고만
+    # n8n은 현 단계 보류/선택 구성요소라 실패해도 경고만
     try:
         ok, detail = n8n_up()
-        print(f"{OK if ok else WARN}n8n: {detail}")
+        print(f"{OK if ok else WARN}n8n(선택/보류): {detail}")
     except Exception:  # noqa: BLE001
-        print(f"{WARN}n8n: 미기동 (필요 시 docker compose up -d)")
+        print(f"{WARN}n8n(선택/보류): 미기동 — 기본 스케줄러는 launchd")
 
     failed = results.count(False)
     print("──────────────────────────────────────────────────")

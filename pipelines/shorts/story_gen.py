@@ -20,10 +20,10 @@ scene dict 형식 (cartoon.py 입력):
 """
 import argparse
 import json
-import re
 import sys
 
 from hermes.config import OLLAMA_HOST, OLLAMA_MODEL
+from pipelines.shorts._utils import extract_json as _extract_json
 
 SYSTEM = (
     "너는 유튜브 썰 쇼츠 전문 작가다. 주어진 주제로 실화 느낌의 반전 스토리를 쓴다.\n"
@@ -78,13 +78,6 @@ _PROP_KEYWORDS = [
 
 _DEFAULT_ROTATION = ["room", "office", "sky", "sunset", "park", "night"]
 
-
-def _extract_json(text: str) -> dict:
-    """모델 출력에서 첫 JSON 객체를 안전하게 추출 (script_gen과 동일 패턴)."""
-    m = re.search(r"\{.*\}", text, re.S)
-    if not m:
-        raise ValueError(f"JSON 없음: {text[:200]}")
-    return json.loads(m.group(0))
 
 
 def _match_keyword(text: str, table: list[tuple[str, tuple[str, ...]]]) -> str | None:

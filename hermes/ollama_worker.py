@@ -61,7 +61,7 @@ def main() -> int:
         return 0
     except Exception as e:  # noqa: BLE001
         print(f"[ollama_worker] 실패: {e}", file=sys.stderr)
-        print("Ollama가 실행 중인지 확인: ollama serve / brew services start ollama",
+        print("Ollama가 실행 중인지 확인: /Applications/Ollama.app 실행 또는 ollama serve",
               file=sys.stderr)
         return 1
 

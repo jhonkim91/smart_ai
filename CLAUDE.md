@@ -8,25 +8,27 @@
 
 ```
 Discord(명령·승인·알림) ⇄ SQLite 작업 큐 ⇄ HERMES(이 세션)
+                                              ├─ hermes.worker (draft/summary/title 등 Ollama 작업 자동 소비)
                                               ├─ Claude 서브에이전트 (atlas/forge/probe/warden/oracle/scribe/augur/herald)
                                               └─ Ollama 로컬 워커 (draft/summary/classify/title/translate)
 지식: Obsidian vault(사람용) ⇄ Chroma(기계 검색용, index_vault로 동기화)
-파이프라인 실행기: n8n (스케줄·웹훅·업로드·알림 전용)
+스케줄러: launchd (트렌드 수집 트리거 전용; n8n은 현 단계 보류)
 ```
 
 ## 절대 원칙
 
-1. **오케스트레이션은 이 세션 단일 계층.** n8n에 판단 로직을 넣지 않는다 (스케줄/웹훅/업로드/알림만).
-2. **비용 라우팅 우선.** 작업 착수 전 `python -m hermes.router <kind> "<요약>"`으로 분류.
-   `ollama` 판정이면 반드시 `hermes.ollama_worker`로 처리하고 결과만 다듬는다. Claude 토큰은 코드/설계/리뷰에만 쓴다.
-3. **HITL 필수 대상**: 외부에 영향이 가는 모든 작업 — 배포, 게시(업로드), 대량 삭제, 비용 발생, 실거래 관련 변경.
+1. **오케스트레이션은 이 세션 단일 계층.** n8n/launchd에 판단 로직을 넣지 않는다 (트리거/알림만).
+2. **채널은 Discord만 사용.** Telegram은 현재 스코프가 아니며 구현·운영 대상에서 제외한다.
+3. **비용 라우팅 우선.** 작업 착수 전 `python -m hermes.router <kind> "<요약>"`으로 분류.
+   `ollama` 판정이면 `hermes.ollama_worker` 또는 `python -m hermes.worker --once`로 처리하고 결과만 다듬는다. Claude 토큰은 코드/설계/리뷰에만 쓴다.
+4. **HITL 필수 대상**: 외부에 영향이 가는 모든 작업 — 배포, 게시(업로드), 대량 삭제, 비용 발생, 실거래 관련 변경.
    절차: `tid=$(python -m hermes.bus add "<제목>" --body "<상세>" --approve)` → `python -m hermes.bus wait $tid`
    → `approved`일 때만 실행, `rejected`/`timeout`이면 중단하고 사유를 herald로 보고.
-4. **자동매매 안전 불변식**: 주문 실행 경로(주문 생성/전송/체결 처리)에 LLM 호출을 절대 넣지 않는다.
-   에이전트의 역할은 개발·백테스트·분석·리포트까지다. `pipelines/trading/README.md` 참고.
-5. **기록 의무**: 아키텍처 결정은 `vault/decisions/ADR-XXXX-*.md`로, 운영 절차는 `vault/runbooks/`로 남긴다(scribe 위임).
+5. **자동매매 안전 불변식**: 주문 실행 경로(주문 생성/전송/체결 처리)에 LLM 호출을 절대 넣지 않는다.
+   주식 실행 코드는 현재 스코프 제외다. 에이전트의 역할은 개발·백테스트·분석·리포트까지다. `pipelines/trading/README.md` 참고.
+6. **기록 의무**: 아키텍처 결정은 `vault/decisions/ADR-XXXX-*.md`로, 운영 절차는 `vault/runbooks/`로 남긴다(scribe 위임).
    기록 후 `python -m memory.index_vault` 실행으로 RAG 동기화.
-6. **과거 지식 먼저 검색**: 새 작업 착수 전 `python -m memory.search "<키워드>"`로 관련 결정/런북 확인.
+7. **과거 지식 먼저 검색**: 새 작업 착수 전 `python -m memory.search "<키워드>"`로 관련 결정/런북 확인.
 
 ## 자주 쓰는 명령
 
@@ -36,6 +38,8 @@ python scripts/healthcheck.py                  # 상태 점검
 python -m hermes.bus list --status queued      # 대기 작업 확인
 python -m hermes.bus add "제목" --approve      # 승인 필요 작업 등록
 python -m hermes.bus wait <id> --timeout 600   # 승인 대기
+python -m hermes.bus events <id>               # 작업 실행 이벤트 확인
+python -m hermes.worker --once                 # queued Ollama 작업 1건 처리
 python -m hermes.ollama_worker summary -       # stdin 요약 (무료)
 python -m memory.search "검색어"               # vault RAG 검색
 python -m memory.index_vault                   # vault → Chroma 동기화
@@ -70,4 +74,4 @@ python -m channel.notify "메시지" --level ok   # Discord 알림
 
 1. `python scripts/healthcheck.py`
 2. `python -m hermes.bus list --status queued` — Discord에서 들어온 작업 확인
-3. 큐에 작업이 있으면 router로 분류 후 처리, 완료 시 `bus result <id> "<요약>"` + herald 보고
+3. 큐에 작업이 있으면 router로 분류한다. `draft/summary/classify/title/translate`는 `python -m hermes.worker --once`로 처리 가능하고, Claude 대상 작업은 서브에이전트에 위임한다. 완료 시 `bus result <id> "<요약>"` + herald 보고

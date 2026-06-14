@@ -28,7 +28,7 @@ CARD_X0, CARD_Y0, CARD_X1, CARD_Y1 = 80, 320, 1000, 1560
 CARD_W, CARD_H = CARD_X1 - CARD_X0, CARD_Y1 - CARD_Y0
 CARD_RADIUS = 48
 
-BASE_CHAR_H = 260  # scale=1.0 기준 캐릭터 높이(px) — 200~340 권장 범위의 중간값
+BASE_CHAR_H = 340  # scale=1.0 기준 캐릭터 높이(px) — 레퍼런스처럼 자막 위에 크게 보이도록 보정
 
 INK = (17, 17, 17)
 GRAY = (130, 130, 130)
@@ -414,7 +414,8 @@ def draw_frame(out_path, *, title: str, brand: str, brand_sub: str,
     for spec in scene.get("chars") or scene.get("characters") or []:
         layer = _character(spec)
         cx = int(float(spec.get("x", 0.5)) * CARD_W * S)
-        foot_y = (CARD_H - 44) * S
+        # 레퍼런스처럼 캐릭터가 자막 뒤에 거의 가려지지 않도록 카드 바닥보다 위에 착지시킨다.
+        foot_y = (CARD_H - 178) * S
         card.paste(layer, (cx - layer.width // 2, foot_y - layer.height), layer)
 
     mask = Image.new("L", card.size, 0)

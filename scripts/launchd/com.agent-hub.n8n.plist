@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+    "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.agent-hub.n8n</string>
+
+    <!-- install_n8n_launchd.sh 실행 시 __PROJECT_DIR__/__N8N_BIN__이 치환된다 -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>__N8N_BIN__</string>
+        <string>start</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__PROJECT_DIR__</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>N8N_USER_FOLDER</key>
+        <string>__PROJECT_DIR__/data/n8n</string>
+        <key>N8N_DIAGNOSTICS_ENABLED</key>
+        <string>false</string>
+        <key>PATH</key>
+        <string>__NODE_BIN_DIR__:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <!-- n8n은 상주 프로세스 — 로그인 시 기동하고 죽으면 재시작 -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>__PROJECT_DIR__/data/logs/n8n.log</string>
+    <key>StandardErrorPath</key>
+    <string>__PROJECT_DIR__/data/logs/n8n.log</string>
+</dict>
+</plist>

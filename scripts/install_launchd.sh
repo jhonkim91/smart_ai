@@ -27,7 +27,7 @@ plutil -lint "$PLIST_DEST"
 DOMAIN="gui/$(id -u)"
 if launchctl list 2>/dev/null | grep -qF "$LABEL"; then
     echo "▶ 기존 서비스 발견 — bootout 후 재등록..."
-    launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true
+    launchctl bootout "$DOMAIN" "$PLIST_DEST" 2>/dev/null || true
 fi
 
 launchctl bootstrap "$DOMAIN" "$PLIST_DEST"

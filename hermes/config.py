@@ -20,7 +20,9 @@ OLLAMA_EMBED_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
 
 # --- 쇼츠 파이프라인 ---
 SHORTS_DIR = DATA_DIR / "shorts"
+STOCK_DIR = DATA_DIR / "stock"  # Pexels 등 다운로드 영상 캐시
 EDGE_TTS_VOICE = os.getenv("EDGE_TTS_VOICE", "ko-KR-InJoonNeural")
+PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")  # 무료 스톡영상 배경(https://www.pexels.com/api/)
 
 # --- Discord ---
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN", "")

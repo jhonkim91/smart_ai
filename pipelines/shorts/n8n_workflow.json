@@ -1,5 +1,6 @@
 {
-  "name": "shorts-pipeline-stub",
+  "id": "shortsautotuneloop01",
+  "name": "shorts-autotune-loop",
   "nodes": [
     {
       "parameters": {
@@ -7,27 +8,55 @@
           "interval": [{ "field": "hours", "hoursInterval": 6 }]
         }
       },
-      "name": "Schedule",
+      "id": "a1000000-0000-4000-8000-000000000001",
+      "name": "Schedule (6h)",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [0, 0]
     },
     {
       "parameters": {
+        "command": "cd __PROJECT_DIR__ && ./.venv/bin/python -m pipelines.shorts.tune_cycle --iters 40 --target 0.85 --quiet"
+      },
+      "id": "a1000000-0000-4000-8000-000000000002",
+      "name": "Run autotune cycle",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [260, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.stdout || '';\nlet r = {};\ntry { r = JSON.parse(raw.slice(raw.indexOf('{'))); } catch (e) {}\nconst gain = r.gain ?? 0;\nconst best = r.best_layout ?? 0;\nconst esc = r.escalated_task ? (' · 인계 ' + r.escalated_task) : '';\nreturn [{ json: { content: `🔧 autotune tick · layout ${r.start_layout ?? '?'}→${best} (Δ${gain})${esc}` } }];"
+      },
+      "id": "a1000000-0000-4000-8000-000000000003",
+      "name": "Format report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 0]
+    },
+    {
+      "parameters": {
         "method": "POST",
-        "url": "https://discord.com/api/webhooks/REPLACE_WITH_YOUR_WEBHOOK",
+        "url": "={{ $env.DISCORD_WEBHOOK_URL }}",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ content: '🎬 shorts pipeline tick · ' + $now.toISO() }) }}"
+        "jsonBody": "={{ JSON.stringify({ content: $json.content }) }}"
       },
+      "id": "a1000000-0000-4000-8000-000000000004",
       "name": "Discord Notify",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [260, 0]
+      "position": [780, 0]
     }
   ],
   "connections": {
-    "Schedule": {
+    "Schedule (6h)": {
+      "main": [[{ "node": "Run autotune cycle", "type": "main", "index": 0 }]]
+    },
+    "Run autotune cycle": {
+      "main": [[{ "node": "Format report", "type": "main", "index": 0 }]]
+    },
+    "Format report": {
       "main": [[{ "node": "Discord Notify", "type": "main", "index": 0 }]]
     }
   },
