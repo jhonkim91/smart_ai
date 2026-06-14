@@ -26,6 +26,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
+from pipelines.shorts import characters
 from pipelines.shorts.reference_style import CARD
 
 W, H = 1080, 1920
@@ -75,7 +76,7 @@ def _darken(c, f: float) -> tuple[int, int, int]:
 
 
 def _gradient_rgba(w: int, h: int, top, bottom) -> Image.Image:
-    """위(top)→아래(bottom) 세로 그라디언트 RGBA(불투명). 입체 셰이딩용."""
+    """위(top)→아래(bottom) 세로 그라디언트 RGBA(불투명). (구버전, 폴백용)"""
     yy = np.linspace(0.0, 1.0, h, dtype=np.float32).reshape(h, 1, 1)
     t = np.array(top, np.float32).reshape(1, 1, 3)
     b = np.array(bottom, np.float32).reshape(1, 1, 3)
@@ -83,6 +84,22 @@ def _gradient_rgba(w: int, h: int, top, bottom) -> Image.Image:
     arr = np.broadcast_to(col, (h, w, 3)).astype(np.uint8)
     alpha = np.full((h, w, 1), 255, np.uint8)
     return Image.fromarray(np.concatenate([arr, alpha], axis=2), "RGBA")
+
+
+def _radial_shade(w: int, h: int, light, dark, lx: float, ly: float, radius: float) -> Image.Image:
+    """광원(lx,ly)에서 거리에 따라 light→dark로 어두워지는 방향성 구(球) 셰이딩.
+
+    세로 그라디언트보다 '한 방향에서 빛 받는 3D 구'처럼 보여 원본 댕소리의
+    매끄러운 렌더 질감에 가깝다. RGB 배열을 직접 만들어 마스크로 본체에 입힌다.
+    """
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    d = np.sqrt((xx - lx) ** 2 + (yy - ly) ** 2) / max(radius, 1.0)
+    t = np.clip(d, 0.0, 1.0)
+    t = t * t * (3.0 - 2.0 * t)          # smoothstep
+    lt = np.array(light, np.float32)
+    dk = np.array(dark, np.float32)
+    col = lt[None, None, :] * (1.0 - t[..., None]) + dk[None, None, :] * t[..., None]
+    return Image.fromarray(col.astype(np.uint8), "RGB")
 
 
 def _draw_actor(canvas: Image.Image, spec: dict, t: float = 0.0,
@@ -198,9 +215,18 @@ def _draw_actor(canvas: Image.Image, spec: dict, t: float = 0.0,
     # 2) 외곽선(마스크 팽창 → 어두운 테두리)
     outline_mask = mask.filter(ImageFilter.MaxFilter(2 * ow + 1))
     local.paste(Image.new("RGBA", (lw_, lh_), tuple(outline) + (255,)), (0, 0), outline_mask)
-    # 3) 본체 그라디언트(위 밝게→아래 어둡게)
-    grad = _gradient_rgba(lw_, lh_, _lighten(color, 0.20), _darken(color, 0.90))
-    local.paste(grad, (0, 0), mask)
+    # 3) 방향성 구 셰이딩(좌상단 광원) + 앰비언트 오클루전(가장자리 어둡게) → 3D 질감
+    lx = (cx + ox) - head_r * 0.28
+    ly = (head_cy + oy) - head_r * 0.34
+    shade = _radial_shade(lw_, lh_, _lighten(color, 0.34), _darken(color, 0.66),
+                          lx, ly, body_h * 0.82)
+    # AO: 실루엣 중심은 밝게, 가장자리로 갈수록 ~20% 어둡게 → 부피감
+    core = mask.filter(ImageFilter.MinFilter(2 * ow + 1)).filter(
+        ImageFilter.GaussianBlur(head_r * 0.20))
+    core_f = (np.asarray(core, np.float32) / 255.0)[..., None]
+    sa = np.asarray(shade, np.float32) * (0.80 + 0.20 * core_f)
+    shade = Image.fromarray(sa.clip(0, 255).astype(np.uint8), "RGB")
+    local.paste(shade, (0, 0), mask)
     # 4) 광택 하이라이트(머리 상단 좌측, 부드럽게, 본체 안쪽으로 클립)
     gloss = Image.new("L", (lw_, lh_), 0)
     gx = head_box[0] + ox + head_r * 0.5
@@ -331,7 +357,7 @@ def _frame(chars: list, t: float, animate: bool) -> Image.Image:
 
 def render_actors(scene: dict, out_path: Path) -> Path:
     """장면의 모든 캐릭터를 투명 풀프레임 PNG로 렌더(정지, 그림자 포함)."""
-    chars = scene.get("chars") or scene.get("characters") or []
+    chars = characters.resolve_all(scene.get("chars") or scene.get("characters") or [])
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     _frame(chars, 0.0, animate=False).save(out_path)
@@ -344,7 +370,7 @@ def render_actors_anim(scene: dict, out_dir: Path, frames: int = 20) -> int:
     out_dir/anim_000.png … 를 만들고 프레임 수를 반환한다. produce_real이
     이 시퀀스를 ffmpeg loop 필터로 장면 길이만큼 반복 재생한다.
     """
-    chars = scene.get("chars") or scene.get("characters") or []
+    chars = characters.resolve_all(scene.get("chars") or scene.get("characters") or [])
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     for i in range(frames):

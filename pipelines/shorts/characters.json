@@ -1,0 +1,38 @@
+{
+  "meta": {
+    "style": "dangsori-blob",
+    "note": "댕소리풍 블롭 캐릭터의 정체성을 고정한다(딥리서치 character.yaml 원칙). 장면은 표정/포즈/위치만 덮어쓰고 색·소품 같은 정체성은 레지스트리가 잠근다 → 장면 간 캐릭터 드리프트(색/외형 변형) 방지."
+  },
+  "locked": ["color", "prop"],
+  "overridable": ["x", "foot_y", "scale", "expr", "pose", "flip"],
+  "characters": {
+    "wife": {
+      "display": "아내(스카이다이버)",
+      "color": "#FF8EC7",
+      "prop": "helmet",
+      "scale": 1.0,
+      "signature": "beret"
+    },
+    "husband": {
+      "display": "남편",
+      "color": "#7CE577",
+      "prop": "none",
+      "scale": 1.0,
+      "signature": "none"
+    },
+    "friend": {
+      "display": "친구",
+      "color": "#81D4FA",
+      "prop": "hat",
+      "scale": 1.0,
+      "signature": "hat"
+    },
+    "villain": {
+      "display": "악역",
+      "color": "#FF8585",
+      "prop": "none",
+      "scale": 1.05,
+      "signature": "none"
+    }
+  }
+}

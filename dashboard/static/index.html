@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>HERMES 대시보드</title>
+<style>
+  :root{
+    --bg:#f7f6f2; --surf:#fff; --surf2:#efeee8; --line:#e3e1d8;
+    --tx:#262623; --tx2:#5f5e5a; --tx3:#8a8881;
+    --blue:#185fa5; --blue-bg:#e6f1fb; --green:#3b6d11; --green-bg:#eaf3de;
+    --teal:#0f6e56; --teal-bg:#e1f5ee; --amber:#854f0b; --amber-bg:#faeeda;
+    --accent:#534ab7; --accent-bg:#eeedfe;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#1b1b19; --surf:#262623; --surf2:#2f2f2b; --line:#3a3a36;
+      --tx:#e8e7e1; --tx2:#b4b2a9; --tx3:#888780;
+      --blue:#85b7eb; --blue-bg:#0c447c; --green:#97c459; --green-bg:#27500a;
+      --teal:#5dcaa5; --teal-bg:#085041; --amber:#ef9f27; --amber-bg:#633806;
+      --accent:#afa9ec; --accent-bg:#3c3489;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo",sans-serif;
+       background:var(--bg);color:var(--tx);font-size:14px;line-height:1.5}
+  header{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:.5px solid var(--line);
+         position:sticky;top:0;background:var(--bg);z-index:5;flex-wrap:wrap}
+  .logo{width:28px;height:28px;border-radius:8px;background:var(--accent-bg);color:var(--accent);
+        display:flex;align-items:center;justify-content:center;font-weight:600}
+  h1{font-size:15px;font-weight:600;margin:0}
+  .sub{color:var(--tx3);font-weight:400}
+  .live{margin-left:auto;font-size:12px;display:flex;align-items:center;gap:5px;color:var(--tx2)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--tx3)}
+  .dot.on{background:#3fae6b}
+  nav{display:flex;gap:6px;padding:10px 16px;overflow-x:auto}
+  nav button{font:inherit;font-size:13px;padding:7px 14px;border-radius:8px;border:.5px solid var(--line);
+             background:transparent;color:var(--tx2);cursor:pointer;white-space:nowrap}
+  nav button.act{background:var(--accent-bg);color:var(--accent);border-color:transparent;font-weight:500}
+  main{padding:0 16px 32px}
+  .view{display:none}.view.act{display:block}
+  /* 칸반 */
+  .cols{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  @media(max-width:720px){.cols{grid-template-columns:1fr;}}
+  .col{background:var(--surf2);border-radius:10px;padding:10px;min-height:80px}
+  .col h2{font-size:13px;font-weight:600;margin:0 0 8px;display:flex;justify-content:space-between}
+  .col h2 .n{color:var(--tx3);font-weight:400}
+  .card{background:var(--surf);border:.5px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:7px}
+  .card .t{font-size:12.5px;line-height:1.35;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .badge{display:inline-block;font-size:10.5px;padding:1px 7px;border-radius:5px;margin-bottom:4px}
+  .b-draft{background:var(--blue-bg);color:var(--blue)} .b-done{background:var(--teal-bg);color:var(--teal)}
+  .b-autotune{background:var(--amber-bg);color:var(--amber)} .b-code{background:var(--accent-bg);color:var(--accent)}
+  .b-general{background:var(--surf2);color:var(--tx2)}
+  .lock{color:var(--amber);font-size:11px;margin-left:4px}
+  .empty{color:var(--tx3);font-size:11.5px;text-align:center;padding:14px 0}
+  /* 에이전트 레인 */
+  .lanes{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  .lane{border:.5px solid var(--line);border-radius:10px;padding:10px;background:var(--surf)}
+  .lane.active{border-color:var(--green);background:var(--green-bg)}
+  .lane.recent{border-color:var(--amber)}
+  .lane .h{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600}
+  .lane.active .h{color:var(--green)}
+  .lane.recent .h{color:var(--amber)}
+  .dot.warn{background:var(--amber)}
+  .lane .idle{color:var(--tx3);font-size:11.5px;margin-top:6px}
+  .lane .job{font-size:11.5px;background:var(--green-bg);color:var(--green);border-radius:6px;padding:4px 7px;margin-top:6px}
+  .lane .recentj{font-size:11px;color:var(--amber);margin-top:6px}
+  .qd{margin-left:auto;font-size:11px;color:var(--tx3)}
+  .summary{display:flex;gap:18px;margin:6px 0 14px;flex-wrap:wrap}
+  .summary div{font-size:13px}.summary b{font-size:20px;font-weight:600;margin-left:4px}
+  /* 파이프라인 */
+  .flow{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .node{padding:9px 12px;border-radius:8px;font-size:12.5px;background:var(--surf2);color:var(--tx2);border:.5px solid var(--line)}
+  .node.done{background:var(--teal-bg);color:var(--teal);border-color:transparent}
+  .node.active{background:var(--green-bg);color:var(--green);border-color:transparent;font-weight:500}
+  .node.approve.active{background:var(--amber-bg);color:var(--amber)}
+  .arr{color:var(--tx3)}
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-top:18px}
+  .metric{background:var(--surf2);border-radius:8px;padding:11px}
+  .metric .l{font-size:12px;color:var(--tx2)} .metric .v{font-size:22px;font-weight:600}
+  /* 이벤트 */
+  .ev{font-size:12px;color:var(--tx2);padding:6px 0;border-bottom:.5px solid var(--line)}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">H</div>
+  <h1>HERMES 대시보드 <span class="sub" id="host"></span></h1>
+  <div class="live"><span class="dot" id="dot"></span><span id="livetx">연결 중…</span><span class="sub" id="ts"></span></div>
+</header>
+<nav>
+  <button class="act" data-v="board">칸반 보드</button>
+  <button data-v="agents">에이전트 병렬</button>
+  <button data-v="pipeline">파이프라인 플로우</button>
+</nav>
+<main>
+  <section class="view act" id="v-board"><div class="cols" id="board"></div></section>
+  <section class="view" id="v-agents">
+    <div class="summary">
+      <div>병렬 가동 <b id="par">0</b></div>
+      <div>실행 중 <b id="runn">0</b></div>
+      <div>최근 가동 <b id="rec">0</b></div>
+    </div>
+    <div class="lanes" id="lanes"></div>
+  </section>
+  <section class="view" id="v-pipeline">
+    <div class="flow" id="flow"></div>
+    <div class="metrics" id="metrics"></div>
+    <h2 style="font-size:13px;margin:22px 0 6px;color:var(--tx2)">최근 이벤트</h2>
+    <div id="events"></div>
+  </section>
+</main>
+<script>
+const KIND_KO={draft:"초안",done:"완료",autotune:"오토튠",code:"코드",general:"일반",
+  design:"설계",review:"리뷰",test:"테스트",research:"리서치",docs:"문서",analysis:"분석",report:"보고"};
+const COL_KO={pending:"대기승인",queued:"대기",running:"진행",done:"완료"};
+const $=s=>document.querySelector(s), el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e};
+function esc(s){return (s||"").replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]))}
+
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.remove('act'));
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('act'));
+  b.classList.add('act'); $('#v-'+b.dataset.v).classList.add('act');
+});
+
+function renderBoard(b){
+  const box=$('#board'); box.innerHTML='';
+  b.columns.forEach(col=>{
+    const cards=b.cards[col]||[];
+    const c=el('div','col');
+    c.appendChild(el('h2',null,`${COL_KO[col]||col}<span class="n">${b.counts[col]||0}</span>`));
+    if(!cards.length) c.appendChild(el('div','empty','— 없음 —'));
+    cards.slice(0,40).forEach(t=>{
+      const k=t.kind||'general';
+      const card=el('div','card');
+      card.innerHTML=`<span class="badge b-${['draft','done','autotune','code','general'].includes(k)?k:'general'}">${KIND_KO[k]||k}</span>`
+        +(t.needs_approval?'<span class="lock">🔒</span>':'')
+        +`<div class="t">#${t.id} ${esc(t.title)}</div>`;
+      c.appendChild(card);
+    });
+    box.appendChild(c);
+  });
+}
+function ago(s){ if(s==null)return''; s=Math.round(s); return s<60?s+'초 전':Math.round(s/60)+'분 전'; }
+function renderAgents(a){
+  $('#par').textContent=a.parallel; $('#runn').textContent=a.running_total; $('#rec').textContent=a.recent||0;
+  const box=$('#lanes'); box.innerHTML='';
+  a.order.forEach(name=>{
+    const l=a.lanes[name]; const st=l.state||'idle';
+    const d=el('div','lane '+st);
+    const dotc=st==='active'?'on':(st==='recent'?'warn':'');
+    let h=`<div class="h"><span class="dot ${dotc}"></span>${name}<span class="qd">큐 ${l.queued}</span></div>`;
+    if(l.running.length) l.running.forEach(j=>h+=`<div class="job">#${j.id} ${esc(j.title).slice(0,40)}</div>`);
+    else if(st==='active'&&l.last) h+=`<div class="job">#${l.last.task_id} ${esc(l.last.kind||'')} 처리중</div>`;
+    else if(st==='recent'&&l.last) h+=`<div class="recentj">방금 ${l.last.stage==='done'?'완료':l.last.stage} #${l.last.task_id} · ${ago(l.last.age_sec)}</div>`;
+    else h+=`<div class="idle">idle</div>`;
+    d.innerHTML=h; box.appendChild(d);
+  });
+}
+function renderPipeline(p){
+  const f=$('#flow'); f.innerHTML='';
+  p.nodes.forEach((n,i)=>{
+    f.appendChild(el('div','node '+n.key+' '+n.state,esc(n.label)));
+    if(i<p.nodes.length-1) f.appendChild(el('span','arr','→'));
+  });
+  const m=p.metrics, mb=$('#metrics'); mb.innerHTML='';
+  [['에피소드',m.episodes],['렌더 완료',m.rendered],['초안 대기',m.drafts_queued],['업로드',m.uploaded]]
+    .forEach(([l,v])=>mb.appendChild(el('div','metric',`<div class="l">${l}</div><div class="v">${v}</div>`)));
+}
+function renderEvents(evs){
+  const box=$('#events'); box.innerHTML='';
+  if(!evs.length){box.appendChild(el('div','empty','이벤트 없음 — 워커 계측(log_event) 추가 시 표시됩니다'));return;}
+  evs.forEach(e=>{
+    const tag=e.agent?`<span class="badge b-general">${e.agent}</span> `:'';
+    box.appendChild(el('div','ev',`${tag}<b>#${e.task_id??'-'}</b> ${esc(e.message)} <span class="sub">${e.created_at}</span>`));
+  });
+}
+function apply(s){
+  renderBoard(s.board); renderAgents(s.agents); renderPipeline(s.pipeline); renderEvents(s.events);
+  $('#ts').textContent=' · '+s.ts;
+}
+function setLive(on){ $('#dot').classList.toggle('on',on); $('#livetx').textContent=on?'live':'재연결 중…'; }
+
+$('#host').textContent='· '+location.host;
+let es;
+function connect(){
+  try{
+    es=new EventSource('/stream');
+    es.onopen=()=>setLive(true);
+    es.onmessage=e=>{ if(!e.data)return; try{apply(JSON.parse(e.data));setLive(true);}catch(_){} };
+    es.onerror=()=>{ setLive(false); es.close(); setTimeout(poll,3000); };
+  }catch(_){ poll(); }
+}
+async function poll(){ // SSE 실패 시 폴백
+  try{ const r=await fetch('/api/snapshot'); apply(await r.json()); setLive(true);}catch(_){setLive(false);}
+  setTimeout(poll,3000);
+}
+connect();
+</script>
+</body>
+</html>

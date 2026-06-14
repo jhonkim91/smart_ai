@@ -473,13 +473,16 @@ def _draw_characters(card: Image.Image, scene: dict) -> None:
         "street": (146, 154, 166),
         "sky": (126, 181, 208),
     }.get(bg, (150, 150, 150))
+    # 캐릭터 레지스트리 적용(char 참조 → 정체성 고정. 인라인 스펙은 그대로)
+    from pipelines.shorts import characters
+    specs = characters.resolve_all(scene.get("chars") or scene.get("characters") or [])
     # ground shadow
-    for spec in scene.get("chars") or scene.get("characters") or []:
+    for spec in specs:
         cx = int(float(spec.get("x", .5)) * cw)
         scale = float(spec.get("scale", 1.06))
         foot = int(float(spec.get("foot_y", .80)) * ch)
         d.ellipse([cx-int(92*scale*S), foot-int(20*S), cx+int(92*scale*S), foot+int(10*S)], fill=shadow_color)
-    for spec in scene.get("chars") or scene.get("characters") or []:
+    for spec in specs:
         layer = _char_layer(spec)
         cx = int(float(spec.get("x", .5)) * cw)
         foot = int(float(spec.get("foot_y", .80)) * ch)

@@ -16,7 +16,7 @@ import sys
 import time
 from typing import Any
 
-from hermes import bus
+from hermes import activity, bus
 from hermes.ollama_worker import SYSTEM_PROMPTS, run as ollama_run
 from hermes.router import OLLAMA_KINDS, route
 
@@ -45,11 +45,8 @@ def process_task(task: dict[str, Any], *, notify_done: bool = False) -> dict[str
     text = _task_text(task)
     decision = route(kind, text)
 
-    bus.log_event(
-        task_id,
-        "worker claimed task",
-        payload={"kind": kind, "route": decision},
-    )
+    # 구조화 계측: ollama 레인 점등(대시보드 병렬 뷰)
+    activity.start(task_id, "ollama", kind=kind)
 
     if decision.get("target") != "ollama" or kind not in SYSTEM_PROMPTS:
         message = (
@@ -57,16 +54,12 @@ def process_task(task: dict[str, Any], *, notify_done: bool = False) -> dict[str
             "Claude/HERMES 수동 처리 큐로 남겨야 하는 작업입니다."
         )
         bus.set_result(task_id, message, status="failed")
-        bus.log_event(task_id, message, level="warn")
+        activity.fail(task_id, "ollama", kind=kind, note="unsupported kind")
         return {"task_id": task_id, "status": "failed", "reason": "unsupported_kind"}
 
     result = ollama_run(kind, text)
     bus.set_result(task_id, result, status="done")
-    bus.log_event(
-        task_id,
-        "worker completed task",
-        payload={"kind": kind, "result_chars": len(result)},
-    )
+    activity.done(task_id, "ollama", kind=kind)
 
     if notify_done:
         from channel.notify import send
@@ -96,7 +89,7 @@ def run_once(
         task_id = int(task["id"])
         message = f"[worker] 실패: {exc}"
         bus.set_result(task_id, message, status="failed")
-        bus.log_event(task_id, message, level="error")
+        activity.fail(task_id, "ollama", note=str(exc))
         if notify_done:
             from channel.notify import send
 

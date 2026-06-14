@@ -63,6 +63,14 @@ python -m channel.notify "메시지" --level ok   # Discord 알림
 단순 수정은 forge 단독으로 충분하다. 위임 시 컨텍스트를 자급자족 가능하게 전달할 것
 (서브에이전트는 이 대화를 보지 못한다).
 
+**가동 계측(대시보드 병렬 뷰 점등):** 서브에이전트 위임 시 시작/완료를 기록하면
+`python -m dashboard.tui` / 웹 대시보드 에이전트 병렬 뷰에 해당 레인이 점등된다.
+```bash
+python -m hermes.activity start <task_id> <agent> --kind <kind>   # 위임 시작
+python -m hermes.activity done  <task_id> <agent> --kind <kind>   # 완료
+```
+Ollama 워커(`hermes.worker`)는 자동 기록하므로 별도 호출 불필요.
+
 ## 코드 컨벤션
 
 - Python 3.11+, 표준 라이브러리 우선. 의존성 추가는 atlas 검토 후.

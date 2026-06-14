@@ -51,6 +51,10 @@ def _load_story(topic: str, story_file: str | None) -> dict:
 
 def _renderer(style: str):
     """프레임 렌더러 모듈 선택."""
+    if style == "dang_reference":
+        from pipelines.shorts import dang_reference
+
+        return dang_reference
     if style == "reference":
         from pipelines.shorts import reference_style
 
@@ -71,6 +75,9 @@ def _brand_defaults(story: dict, style: str) -> tuple[str, str]:
     if style == "reference":
         return (story.get("brand") or "댕소리",
                 story.get("brand_sub") or "오늘의 실화 썰")
+    if style == "dang_reference":
+        return (story.get("brand") or "Dang_sound",
+                story.get("brand_sub") or "댕소리")
     return story.get("brand") or "Dang_sound", story.get("brand_sub") or ""
 
 
@@ -276,8 +283,8 @@ def main() -> int:
                    help="assets/bgm 파일명 또는 random. 생략 시 기존 무BGM 경로")
     p.add_argument("--motion", action="store_true",
                    help="장면별 Ken Burns 줌 모션(zoompan). 생략 시 기존 정적 슬라이드쇼")
-    p.add_argument("--style", default="cartoon", choices=("cartoon", "reference"),
-                   help="프레임 렌더 스타일. reference는 원본 레퍼런스 검수용 고품질 스타일")
+    p.add_argument("--style", default="cartoon", choices=("cartoon", "reference", "dang_reference"),
+                   help="프레임 렌더 스타일. dang_reference는 제공 레퍼런스의 제작 문법/레이아웃에 맞춘 스타일")
     args = p.parse_args()
     try:
         result = produce_story(args.topic, args.story, args.notify, args.bgm,

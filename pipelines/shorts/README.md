@@ -96,6 +96,23 @@ python -m pipelines.shorts.compare gen.mp4 data/reference/reference_video.webm -
 | `autotune.py` | SSIM을 목적함수로 좌표하강 탐색 → best 파라미터 영속화 + 이력 로깅 |
 | `tune_cycle.py` | autotune 1사이클 + 수렴 시 bus HITL 인계(중복 방지) + 보고 |
 
+### 캐릭터 레지스트리 (정체성 고정)
+
+장면마다 색·소품을 손으로 반복 적으면 같은 인물이 장면 간 색이 바뀌는 '수동 드리프트'가
+난다(딥리서치 보고서 지적). `characters.json`에 명명된 캐릭터의 정체성(색·소품)을 고정하고,
+story scene은 표정/포즈/위치만 덮어쓴다.
+
+```json
+// story scene의 chars
+{"char": "wife", "x": 0.5, "expr": "shock", "pose": "spread"}   // 레지스트리 참조(권장)
+{"color": "#FF8EC7", "x": 0.5, "expr": "shock"}                 // 인라인(하위호환)
+```
+
+- `characters.json`: `locked`(color/prop — 장면이 덮어써도 무시), `overridable`(표정/포즈/위치),
+  `characters`(wife/husband/friend/villain …). 새 캐릭터는 여기 추가.
+- `characters.py`: `resolve(spec)` — char 참조면 정체성+override 병합, 인라인이면 그대로.
+- actor.py / reference_style.py가 자동 적용 → produce_real·produce_story 모두 반영.
+
 **n8n 자동 트리거** (Docker 불필요, npm n8n):
 
 ```bash
